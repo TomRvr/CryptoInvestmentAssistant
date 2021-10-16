@@ -11,11 +11,12 @@ class Asset:
 		self.ticker = ticker
 		self.amount = 0.0
 		self.usdtValue = 0.0
+		self.usdtPairPrice = 0.0
 	
 	def computeUsdtValue(self):
 		if self.ticker != 'USDT':
-			usdtPairPrice = float(client.get_avg_price(symbol=self.ticker+'USDT')["price"])
-			self.usdtValue = self.amount * usdtPairPrice
+			self.usdtPairPrice = float(client.get_avg_price(symbol=self.ticker+'USDT')["price"])
+			self.usdtValue = self.amount * self.usdtPairPrice
 		else :
 			self.usdtValue = self.amount
 
@@ -32,8 +33,8 @@ class Portfolio:
 
 
 
-def main():
-	myPortfolio = Portfolio()
+def getPortfolio():
+	portfolio = Portfolio()
 	res = client.get_exchange_info()
 	info = client.get_account_snapshot(type='SPOT')
 	#print(info)
@@ -45,15 +46,19 @@ def main():
 			details = client.get_asset_balance(asset=newAsset.ticker)
 			newAsset.amount = float(details["free"]) + float(details["locked"])
 			newAsset.computeUsdtValue()
-			myPortfolio.assets.append(newAsset)
+			portfolio.assets.append(newAsset)
 			
-	for coin in myPortfolio.assets:
+	for coin in portfolio.assets:
 		print(coin.ticker)
-		print(coin.amount)
-		print(coin.usdtValue)
+		print("Amount: " + str(coin.amount))
+		print("Price (USDT): " + str(coin.usdtPairPrice))
+		print("Value (USDT): " + str(coin.usdtValue))
+		print("")
 		
-	myPortfolio.computeUsdtValue()
-	print(myPortfolio.usdtValue)	
+	portfolio.computeUsdtValue()
+
+	return portfolio	
 
 if __name__ == "__main__":
-	main()
+	myPortfolio = getPortfolio()
+	print("Portfolio value (USDT): " + str(myPortfolio.usdtValue))
