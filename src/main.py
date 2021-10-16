@@ -1,5 +1,6 @@
 import json
 import time
+import yagmail
 from binance.client import Client
 
 with open("binance-conf.json") as binance_conf_file:
@@ -95,11 +96,25 @@ def getStrategy():
 
 	return strategy
 
+def sendMail(text):
+	with open("comm.json") as comm_file:
+		mailComm = json.load(comm_file)["mail"]
+
+	yagmail.register(mailComm["address"], mailComm["appPwd"])
+
+	yag = yagmail.SMTP(mailComm["address"])
+	yag.send(
+        to=mailComm["address"],
+        subject="Crypto bot",
+        contents=text
+    )
+
 if __name__ == "__main__":
 	myPortfolio = getPortfolio()
 	print("Portfolio value (USDT): " + str(myPortfolio.usdtValue)+"\n")
 
 	while True:
+		alertText = ""
 		print(time.time())
 		myStrategy = getStrategy()
 		print("Freq: " + str(myStrategy.frequency)+"\n")
@@ -112,5 +127,14 @@ if __name__ == "__main__":
 			print("Current price (USDT): " + str(target.usdtPairPrice))
 			print("Buy: " + str(buy))
 			print("Sell: " + str(sell)+"\n")
+
+			if buy :
+				alertText += "Alert for {0} lower than {1} USDT\nCurrent price : {2} USDT \nStrategy: BUY \n\n".format(target.ticker, str(target.buyLimit), str(target.usdtPairPrice))
 		
+			if sell :
+				alertText += "Alert for {0} higher than {1} USDT\nCurrent price : {2} USDT \nStrategy: SELL \n\n".format(target.ticker, str(target.sellLimit), str(target.usdtPairPrice))
+		
+		if alertText != "":
+			sendMail(alertText)
+
 		time.sleep(myStrategy.frequency)
