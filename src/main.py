@@ -1,4 +1,5 @@
 import json
+import time
 from binance.client import Client
 
 with open("binance-conf.json") as binance_conf_file:
@@ -31,8 +32,6 @@ class Portfolio:
 			
 		return self.usdtValue
 
-
-
 def getPortfolio():
 	portfolio = Portfolio()
 	res = client.get_exchange_info()
@@ -59,6 +58,59 @@ def getPortfolio():
 
 	return portfolio	
 
+class Strategy:
+	def __init__(self, freq):
+		self.frequency = freq
+		self.targetAssets = []
+
+class TargetAsset:
+	def __init__(self, json):
+		self.ticker = json["ticker"]
+		self.buyLimit = json["buyLimit"]
+		self.sellLimit = json["sellLimit"]
+		self.usdtPairPrice = 0.0
+	
+	def updateUsdtPairValue(self):
+		if self.ticker != 'USDT':
+			self.usdtPairPrice = float(client.get_avg_price(symbol=self.ticker+'USDT')["price"])
+
+	# Return true if price is lower than buy limit, false otherwise
+	def checkBuyLimit(self):
+		self.updateUsdtPairValue()
+		return self.usdtPairPrice < self.buyLimit
+
+	# Return true if price is higher than sell limit, false otherwise
+	def checkSellLimit(self):
+		self.updateUsdtPairValue()
+		return self.usdtPairPrice > self.sellLimit
+
+def getStrategy():
+	with open("strategy.json") as strategy_file:
+		strat = json.load(strategy_file)
+	
+	strategy = Strategy(strat["frequency"])
+	for asset in strat["assets"]:
+		newTargetAsset = TargetAsset(asset)
+		strategy.targetAssets.append(newTargetAsset)
+
+	return strategy
+
 if __name__ == "__main__":
 	myPortfolio = getPortfolio()
-	print("Portfolio value (USDT): " + str(myPortfolio.usdtValue))
+	print("Portfolio value (USDT): " + str(myPortfolio.usdtValue)+"\n")
+
+	while True:
+		print(time.time())
+		myStrategy = getStrategy()
+		print("Freq: " + str(myStrategy.frequency)+"\n")
+		for target in myStrategy.targetAssets:
+			buy = target.checkBuyLimit()
+			sell = target.checkSellLimit()
+			print(target.ticker)
+			print("Buy if lower than " + str(target.buyLimit))
+			print("Buy if higher than " + str(target.sellLimit))
+			print("Current price (USDT): " + str(target.usdtPairPrice))
+			print("Buy: " + str(buy))
+			print("Sell: " + str(sell)+"\n")
+		
+		time.sleep(myStrategy.frequency)
