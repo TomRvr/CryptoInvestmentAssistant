@@ -1,0 +1,15 @@
+{
+	"frequency": 3600,
+	"assets": [
+		{
+			"ticker": "BTC",
+			"buyLimit": 55000,
+			"sellLimit": 65000
+		},
+		{
+			"ticker": "ETH",
+			"buyLimit": 3000,
+			"sellLimit": 4000
+		}
+	]
+}
