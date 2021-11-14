@@ -2,6 +2,10 @@ import json
 import time
 import yagmail
 from binance.client import Client
+import discord
+import asyncio
+
+
 
 with open("binance-conf.json") as binance_conf_file:
 	binance_conf = json.load(binance_conf_file)
@@ -109,32 +113,58 @@ def sendMail(text):
         contents=text
     )
 
+with open("discord.json") as discord_conf_file:
+	discord_conf = json.load(discord_conf_file)
+
+class Bot(discord.Client):
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+
+		self.alertText = ""
+		self.myStrategy = getStrategy()
+		print("Freq: " + str(self.myStrategy.frequency)+"\n")
+
+		# create the background task and run it in the background
+		self.bg_task = self.loop.create_task(self.my_background_task())
+
+	async def on_ready(self):
+		print('Logged in as')
+		print(self.user.name)
+		print(self.user.id)
+		print('------')
+
+	async def my_background_task(self):
+		await self.wait_until_ready()
+		channel = self.get_channel(discord_conf["CHANNEL"]) # channel ID goes here
+		while not self.is_closed():
+			self.alertText = ""
+			for target in self.myStrategy.targetAssets:
+				buy = target.checkBuyLimit()
+				sell = target.checkSellLimit()
+
+				if buy :
+					self.alertText += "Alert for {0} lower than {1} USDT\nCurrent price : {2} USDT \nStrategy: BUY \n\n".format(target.ticker, str(target.buyLimit), str(target.usdtPairPrice))
+		
+				if sell :
+					self.alertText += "Alert for {0} higher than {1} USDT\nCurrent price : {2} USDT \nStrategy: SELL \n\n".format(target.ticker, str(target.sellLimit), str(target.usdtPairPrice))
+		
+			if self.alertText != "":
+				await channel.send(self.alertText)
+			
+			await asyncio.sleep(self.myStrategy.frequency) # task runs every 60 seconds
+
+
+discordClient = Bot()
+
+@discordClient.event
+async def on_message(message):
+    #if message.author == client.user:
+    #    return
+
+	if message.content.startswith('$PRTFL'):
+		myPortfolio = getPortfolio()
+		print("Portfolio value (USDT): " + str(myPortfolio.usdtValue)+"\n")
+		await message.channel.send("Portfolio value (USDT): " + str(myPortfolio.usdtValue))
+
 if __name__ == "__main__":
-	myPortfolio = getPortfolio()
-	print("Portfolio value (USDT): " + str(myPortfolio.usdtValue)+"\n")
-
-	while True:
-		alertText = ""
-		print(time.time())
-		myStrategy = getStrategy()
-		print("Freq: " + str(myStrategy.frequency)+"\n")
-		for target in myStrategy.targetAssets:
-			buy = target.checkBuyLimit()
-			sell = target.checkSellLimit()
-			print(target.ticker)
-			print("Buy if lower than " + str(target.buyLimit))
-			print("Buy if higher than " + str(target.sellLimit))
-			print("Current price (USDT): " + str(target.usdtPairPrice))
-			print("Buy: " + str(buy))
-			print("Sell: " + str(sell)+"\n")
-
-			if buy :
-				alertText += "Alert for {0} lower than {1} USDT\nCurrent price : {2} USDT \nStrategy: BUY \n\n".format(target.ticker, str(target.buyLimit), str(target.usdtPairPrice))
-		
-			if sell :
-				alertText += "Alert for {0} higher than {1} USDT\nCurrent price : {2} USDT \nStrategy: SELL \n\n".format(target.ticker, str(target.sellLimit), str(target.usdtPairPrice))
-		
-		if alertText != "":
-			sendMail(alertText)
-
-		time.sleep(myStrategy.frequency)
+	discordClient.run(discord_conf["TOKEN"])

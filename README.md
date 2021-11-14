@@ -17,3 +17,11 @@ Install yagmail
 
 ## How to run  
 `python3 main.py`  
+
+## Discord bot  
+How to create a bot and get a token  https://github.com/reactiflux/discord-irc/wiki/Creating-a-discord-bot-&-getting-a-token   
+
+Python discord API wrapper https://discordpy.readthedocs.io/en/stable/  
+
+Commands :  
+$PRTFL  :   Get your portfolio  
